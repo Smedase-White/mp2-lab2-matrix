@@ -53,6 +53,8 @@ public:
   }
   friend ostream& operator<<(ostream &out, const TVector &v)
   {
+    for (int i = 0; i < v.StartIndex; i++)
+      out << "0 ";
     for (int i = 0; i < v.Size; i++)
       out << v.pVector[i] << ' ';
     return out;
@@ -62,66 +64,138 @@ public:
 template <class ValType>
 TVector<ValType>::TVector(int s, int si)
 {
+    if ((s < 0) || (s > MAX_VECTOR_SIZE)) throw logic_error("Invalid size (TVector::TVector).");
+    if ((si < 0) || (si > MAX_VECTOR_SIZE)) throw logic_error("Invalid start index (TVector::TVector).");
+    Size = s;
+    StartIndex = si;
+    if (s > 0)
+    {
+        pVector = new ValType[s];
+        for (int i = 0; i < s; i++)
+            pVector[i] = (ValType)0;
+    }
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> //конструктор копирования
 TVector<ValType>::TVector(const TVector<ValType> &v)
 {
+    Size = v.Size;
+    StartIndex = v.StartIndex;
+    pVector = new ValType[Size];
+    for (int i = 0; i < Size; i++)
+        pVector[i] = v.pVector[i];
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType>
 TVector<ValType>::~TVector()
 {
+    if (Size > 0)
+        delete[] pVector;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // доступ
 ValType& TVector<ValType>::operator[](int pos)
 {
+    if ((pos < StartIndex) || (pos >= Size + StartIndex)) throw logic_error("Invalid position(TVector::operator[]).");
+    return pVector[pos - StartIndex];
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // сравнение
 bool TVector<ValType>::operator==(const TVector &v) const
 {
+    if (Size != v.Size) return false;
+    if (StartIndex != v.StartIndex) return false;
+    for (int i = 0; i < Size; i++)
+        if (pVector[i] != v.pVector[i])
+            return false;
+    return true;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // сравнение
 bool TVector<ValType>::operator!=(const TVector &v) const
 {
+    return !(this->operator==(v));
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // присваивание
 TVector<ValType>& TVector<ValType>::operator=(const TVector &v)
 {
+    if (this != &v)
+    {
+        if (Size != v.Size)
+        {
+            Size = v.Size;
+            delete[]pVector;
+            pVector = new ValType[Size];
+        }
+        for (int i = 0; i < Size; i++)
+        {
+            pVector[i] = v.pVector[i];
+        }
+        StartIndex = v.StartIndex;
+    }
+    return *this;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // прибавить скаляр
 TVector<ValType> TVector<ValType>::operator+(const ValType &val)
 {
+    TVector<ValType> temp(Size);
+    temp.StartIndex = StartIndex;
+    for (int i = 0; i < Size; i++)
+        temp.pVector[i] = val + pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // вычесть скаляр
 TVector<ValType> TVector<ValType>::operator-(const ValType &val)
 {
+    TVector<ValType> temp(Size, StartIndex);
+    for (int i = 0; i < Size; i++)
+        temp.pVector[i] = val - pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // умножить на скаляр
 TVector<ValType> TVector<ValType>::operator*(const ValType &val)
 {
+    TVector<ValType> temp(Size, StartIndex);
+    for (int i = 0; i < Size; i++)
+        temp.pVector[i] = val * pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // сложение
 TVector<ValType> TVector<ValType>::operator+(const TVector<ValType> &v)
 {
+    if (Size != v.Size) throw logic_error("Different size vectors(TVector::operator+)");
+    if (StartIndex != v.StartIndex) throw logic_error("Different startindex vectors(TVector::operator+)");
+    TVector<ValType> temp(v);
+    for (int i = 0; i < Size; i++)
+        temp.pVector[i] = temp.pVector[i] + this->pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // вычитание
 TVector<ValType> TVector<ValType>::operator-(const TVector<ValType> &v)
 {
+    if (Size != v.Size) throw logic_error("Different size vectors(TVector::operator-)");
+    if (StartIndex != v.StartIndex) throw logic_error("Different startindex vectors(TVector::operator-)");
+    TVector<ValType> temp(v);
+    for (int i = 0; i < Size; i++)
+        temp.pVector[i] = temp.pVector[i] - this->pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // скалярное произведение
 ValType TVector<ValType>::operator*(const TVector<ValType> &v)
 {
+    if (Size != v.Size) throw logic_error("Different size vectors(TVector::operator*)");
+    if (StartIndex != v.StartIndex) throw logic_error("Different startindex vectors(TVector::operator*)");
+    ValType result = 0;
+    for (int i = 0; i < Size; i++)
+        result = v.pVector[i] * this->pVector[i];
+    return result;
 } /*-------------------------------------------------------------------------*/
 
 
@@ -157,6 +231,9 @@ public:
 template <class ValType>
 TMatrix<ValType>::TMatrix(int s): TVector<TVector<ValType> >(s)
 {
+    if ((s < 0) || (s > MAX_MATRIX_SIZE)) throw logic_error("Invalid size (TMatrix::TMatrix).");
+    for (int i = 0; i < s; i++)
+        this->pVector[i] = TVector<ValType>(s - i, i);
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // конструктор копирования
@@ -170,26 +247,47 @@ TMatrix<ValType>::TMatrix(const TVector<TVector<ValType> > &mt):
 template <class ValType> // сравнение
 bool TMatrix<ValType>::operator==(const TMatrix<ValType> &mt) const
 {
+    for (int i = 0; i < this->Size; i++)
+        if (this->pVector[i] != mt.pVector[i])
+            return false;
+    return true;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // сравнение
 bool TMatrix<ValType>::operator!=(const TMatrix<ValType> &mt) const
 {
+    return !(this->operator==(mt));
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // присваивание
 TMatrix<ValType>& TMatrix<ValType>::operator=(const TMatrix<ValType> &mt)
 {
+    this->Size = mt.Size;
+    this->StartIndex = 0;
+    this->pVector = new TVector<ValType>[this->Size];
+    for (int i = 0; i < this->Size; i++)
+        this->pVector[i] = mt.pVector[i];
+    return *this;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // сложение
 TMatrix<ValType> TMatrix<ValType>::operator+(const TMatrix<ValType> &mt)
 {
+    if (this->Size != mt.Size) throw logic_error("Different size(TMatrix::operator+)");
+    TMatrix<ValType> temp(this->Size);
+    for (int i = 0; i < this->Size; i++)
+        temp.pVector[i] = this->pVector[i] + mt.pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 template <class ValType> // вычитание
 TMatrix<ValType> TMatrix<ValType>::operator-(const TMatrix<ValType> &mt)
 {
+    if (this->Size != mt.Size) throw logic_error("Different size(TMatrix::operator-)");
+    TMatrix<ValType> temp(this->Size);
+    for (int i = 0; i < this->Size; i++)
+        temp.pVector[i] = this->pVector[i] - mt.pVector[i];
+    return temp;
 } /*-------------------------------------------------------------------------*/
 
 // TVector О3 Л2 П4 С6
